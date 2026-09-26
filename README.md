@@ -6,9 +6,9 @@ repository; Minerva does not install or invoke this project.
 
 ## Current status
 
-CSV parsing and validation are implemented. File generation, the command-line
-entrypoint and Git/PR automation are not implemented yet. Parsing does not write
-tenant files or make network requests.
+CSV parsing, validation and file generation are implemented. The command-line
+entrypoint and Git/PR automation are not implemented yet. Parsing and change
+planning are read-only; `apply_plan()` explicitly writes the planned files.
 
 ## Setup
 
@@ -54,7 +54,7 @@ Error row numbers count CSV records, including the header, not physical lines
 inside multiline answers. `Timestamp` is optional metadata and is ignored.
 
 Blank optional event settings are omitted; blank links remain empty strings.
-Description text is preserved exactly by the parser. File rendering will own MDX
+Description text is preserved exactly by the parser. File rendering owns MDX
 newline normalization. URL validation rejects embedded control characters, an
 intentional tightening of the old importer. Compatibility cases cover common
 inputs; this is not a comprehensive RFC/WHATWG validation library.
