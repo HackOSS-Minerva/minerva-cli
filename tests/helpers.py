@@ -20,7 +20,7 @@ DESCRIPTIONS = (
     "Speaker registration introduction", "Superadmin registration introduction",
     "Volunteer registration introduction", "Feedback form introduction",
     "Project submission instructions", "Event rules", "Venue information",
-    "Code of conduct", "Judge orientation guide",
+    "Code of conduct",
 )
 
 

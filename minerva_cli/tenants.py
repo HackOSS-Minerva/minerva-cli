@@ -59,7 +59,6 @@ DESCRIPTIONS = (
     ("Event rules", "rules.mdx", "markdown", "rules"),
     ("Venue information", "venue.mdx", "markdown", "venue"),
     ("Code of conduct", "code-of-conduct.mdx", "markdown", "codeOfConduct"),
-    ("Judge orientation guide", "judge-orientation.mdx", "markdown", "orientation"),
 )
 HEADERS = (
     *(title for title, *_ in FIELDS),

@@ -135,7 +135,7 @@ class GitTests(unittest.TestCase):
             result = main(["tenants", "sync", str(csv_path), "--repo", str(self.repo), "--draft"])
         self.assertEqual(result, 0, output.getvalue())
         paths = local_git(self.repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines()
-        self.assertEqual(len(paths), 13)
+        self.assertEqual(len(paths), 12)
         self.assertTrue(all(path.startswith("tenants/") for path in paths))
         self.assertEqual(build_plan(self.repo, parse_tenants(csv_path)).changes, {})
         self.assertIn("https://github.com/example/minerva/pull/1", output.getvalue())

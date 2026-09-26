@@ -41,7 +41,7 @@ class TenantCsvTests(unittest.TestCase):
         expected_files = (
             "participants.mdx", "judges.mdx", "speakers.mdx", "superadmins.mdx",
             "volunteers.mdx", "feedback.mdx", "submission.mdx", "rules.mdx",
-            "venue.mdx", "code-of-conduct.mdx", "judge-orientation.mdx",
+            "venue.mdx", "code-of-conduct.mdx",
         )
         answers = {title: f"Content {index}\r\n  indentation\r" for index, title in
                    enumerate(DESCRIPTIONS)}
@@ -68,7 +68,7 @@ class TenantCsvTests(unittest.TestCase):
         self.assertEqual(len(parse_tenants(write_csv(self.path, headers=headers))), 1)
 
     def test_empty_rows_skipped_and_entire_sheet_processed(self):
-        rows = [[], ["  "] * 61, list(response().values()), [],
+        rows = [[], ["  "] * len(response()), list(response().values()), [],
                 list(response(**{"Tenant ID": "second-hack"}).values())]
         tenants = parse_tenants(write_csv(self.path, rows))
         self.assertEqual([tenant.slug for tenant in tenants], ["example-hack", "second-hack"])
@@ -173,6 +173,15 @@ class TenantCsvTests(unittest.TestCase):
         for title in SCHEDULES:
             with self.subTest(title=title), self.assertRaises(ValueError):
                 self.parse(**{title + " closes": START})
+
+    def test_judge_orientation_schedule_values_preserved(self):
+        tenant = self.parse(**{
+            "Judge orientation opens": "2026-11-20T10:00:00-08:00",
+            "Judge orientation closes": "2026-11-20T12:00:00-08:00",
+        })[0]
+        self.assertEqual(tenant.config["locks"]["judge"]["orientation"], [
+            "2026-11-20T10:00:00-08:00", "2026-11-20T12:00:00-08:00",
+        ])
 
     def test_url_compatibility_cases_on_every_link_field(self):
         # Recorded from the existing Zod validator; controls deliberately tightened.

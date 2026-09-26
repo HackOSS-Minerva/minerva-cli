@@ -29,7 +29,7 @@ class GenerationTests(unittest.TestCase):
         plan = build_plan(self.repo, [self.tenant])
         self.assertEqual(self.snapshot(), before)
         self.assertEqual(plan.processed_slugs, ["example-hack"])
-        self.assertEqual(len(plan.changes), 13)
+        self.assertEqual(len(plan.changes), 12)
         config_path = Path("tenants/example-hack/example-hack.json")
         self.assertEqual(json.loads(plan.changes[config_path]), self.tenant.config)
         self.assertTrue(plan.changes[config_path].endswith("\n"))
@@ -94,8 +94,7 @@ class GenerationTests(unittest.TestCase):
                             ("speaker", "speakers"), ("superadmin", "superadmins"),
                             ("volunteer", "volunteers"), ("feedback", "feedback"),
                             ("submission", "submission"), ("rules", "rules"),
-                            ("venue", "venue"), ("codeOfConduct", "code_of_conduct"),
-                            ("orientation", "judge_orientation")):
+                            ("venue", "venue"), ("codeOfConduct", "code_of_conduct")):
             self.assertIn(f"{key}: tenant_example_hack_{suffix}", registry)
         self.assertIn('@/tenants/example-hack/descriptions/code-of-conduct.mdx', registry)
 

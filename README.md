@@ -64,9 +64,11 @@ builds/tests are not automatically run or claimed in the generated PR.
 
 Current integration prerequisites: the `tenants/generated.ts` registry must be
 imported by `hooks/get-tenant.ts`, and every existing tenant must have its required
-description files (including `judge-orientation.mdx`). The current main snapshot
-lacks those orientation files; this tool does not silently add them to omitted
-tenants. Generated JSON uses the planned standard-library indentation, which can
+10 description files. The judge-orientation opening/closing schedule remains in
+configuration but has no Markdown description. Remove the obsolete “Judge
+orientation guide” question and its response-sheet column before exporting a new
+CSV; the importer does not accept that obsolete column. Generated JSON uses the
+planned standard-library indentation, which can
 differ from Minerva Prettier's compact array formatting.
 
 The parser can currently be called from Python:
