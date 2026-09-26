@@ -8,7 +8,8 @@ repository; Minerva does not install or invoke this project.
 
 CSV parsing, generation, dry-run and Git/PR automation are implemented. Minerva
 must already contain the generated registry integration before this command can
-run. That separate integration and the CLI's pull-request CI are not installed yet.
+run. That separate integration is not installed yet. A pull-request test workflow
+is included; its first GitHub run awaits publication.
 
 ## Setup
 
@@ -92,7 +93,11 @@ inputs; this is not a comprehensive RFC/WHATWG validation library.
 
 ## Tests
 
+Pull requests run this suite on Ubuntu with Python 3.12 and uv 0.11.23. Run the same
+commands locally:
+
 ```sh
+uv sync --locked
 uv run --locked python -m unittest discover -s tests -v
 ```
 
