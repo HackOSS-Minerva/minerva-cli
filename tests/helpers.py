@@ -1,6 +1,8 @@
 """Synthetic form responses independent of production field definitions."""
 
 import csv
+import os
+import subprocess
 from pathlib import Path
 
 
@@ -61,3 +63,38 @@ def write_csv(path: Path, rows=None, headers=None, bom=False):
         writer.writerows(rows if rows and isinstance(rows[0], list) else
                          [[row.get(header, "") for header in headers] for row in rows])
     return path
+
+
+def local_git(repo, *args):
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True,
+                          text=True).stdout.strip()
+
+
+def git_fixture(root):
+    """Local-only origin and checkout with minimal registry integration."""
+    remote = root / "origin.git"
+    repo = root / "checkout with spaces"
+    remote.mkdir()
+    repo.mkdir()
+    local_git(remote, "init", "--bare", "--initial-branch=main")
+    local_git(repo, "init", "--initial-branch=main")
+    local_git(repo, "config", "user.name", "Test Operator")
+    local_git(repo, "config", "user.email", "operator@example.org")
+    local_git(repo, "config", "commit.gpgsign", "false")
+    (repo / "tenants").mkdir()
+    (repo / "hooks").mkdir()
+    (repo / "package.json").write_text('{"name":"minerva"}\n')
+    (repo / "tenants/generated.ts").write_text("export const tenantSlugs = [] as const;\n")
+    (repo / "hooks/get-tenant.ts").write_text('import { tenantSlugs } from "@/tenants/generated";\n')
+    local_git(repo, "add", "package.json", "tenants/generated.ts", "hooks/get-tenant.ts")
+    local_git(repo, "commit", "-m", "fixture")
+    local_git(repo, "remote", "add", "origin", str(remote))
+    local_git(repo, "push", "-u", "origin", "main")
+    return repo, remote
+
+
+def git_environment(root):
+    # Keep temporary Git tests independent of the developer's global config/identity.
+    return {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_AUTHOR_NAME": "Test Operator", "GIT_AUTHOR_EMAIL": "operator@example.org",
+            "GIT_COMMITTER_NAME": "Test Operator", "GIT_COMMITTER_EMAIL": "operator@example.org"}
