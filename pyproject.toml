@@ -1,0 +1,9 @@
+[project]
+name = "minerva-tenant-sync"
+version = "0.1.0"
+description = "Internal tenant configuration tooling for Minerva"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false
