@@ -67,6 +67,43 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(path.read_bytes(), content)
         self.assertEqual(path.stat().st_mtime_ns, before)
 
+    def test_json_compacts_short_schedules_and_keeps_long_schedules_multiline(self):
+        plan = build_plan(self.repo, [self.tenant])
+        content = plan.changes[Path("tenants/example-hack/example-hack.json")]
+        self.assertIn('      "participant": ["2026-11-21T08:00:00-08:00", "2026-11-21T20:00:00-08:00"],', content)
+        self.assertIn('      "team-projects": [\n        "2026-11-21T08:00:00-08:00",\n        "2026-11-21T20:00:00-08:00"\n      ],', content)
+        self.assertEqual(json.loads(content), self.tenant.config)
+
+    def test_json_schedule_width_includes_trailing_comma(self):
+        for title, key, comma, digits, compact in (
+            ("Judge registration", "judge", ",", 5, True),
+            ("Judge registration", "judge", ",", 6, False),
+            ("Live teams", "teams", "", 6, True),
+            ("Live teams", "teams", "", 7, False),
+        ):
+            with self.subTest(title=title, digits=digits):
+                start = "2026-11-21T08:00:00." + "1" * digits + "-08:00"
+                tenant = self.input(**{title + " opens": start})
+                content = build_plan(self.repo, [tenant]).changes[Path("tenants/example-hack/example-hack.json")]
+                line = f'      "{key}": ["{start}", "2026-11-21T20:00:00-08:00"]{comma}'
+                self.assertEqual(len(line), 80 if compact else 81)
+                self.assertEqual(line in content, compact)
+                self.assertEqual(json.loads(content), tenant.config)
+
+    def test_json_rendering_preserves_escaped_text_and_update_noop(self):
+        tenant = self.input(**{"Organization name": 'A "quoted" name\\path\n❤'})
+        plan = build_plan(self.repo, [tenant])
+        content = plan.changes[Path("tenants/example-hack/example-hack.json")]
+        self.assertEqual(json.loads(content), tenant.config)
+        apply_plan(self.repo, plan)
+        self.assertEqual(build_plan(self.repo, [tenant]).changes, {})
+        updated = self.input(**{"Event name": "Updated event"})
+        plan = build_plan(self.repo, [updated])
+        self.assertEqual(set(plan.changes), {Path("tenants/example-hack/example-hack.json")})
+        self.assertIn('      "participant": ["2026-11-21T08:00:00-08:00", "2026-11-21T20:00:00-08:00"],', next(iter(plan.changes.values())))
+        apply_plan(self.repo, plan)
+        self.assertEqual(build_plan(self.repo, [updated]).changes, {})
+
     def test_mdx_normalization_preserves_meaningful_whitespace(self):
         for text, expected in (("", ""), ("\r\n", "\n"),
                                ('  # Hi\r\n\r\n"a,b"\r\n\r\n', '  # Hi\n\n"a,b"\n'),

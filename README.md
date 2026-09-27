@@ -67,9 +67,9 @@ imported by `hooks/get-tenant.ts`, and every existing tenant must have its requi
 10 description files. The judge-orientation opening/closing schedule remains in
 configuration but has no Markdown description. Remove the obsolete “Judge
 orientation guide” question and its response-sheet column before exporting a new
-CSV; the importer does not accept that obsolete column. Generated JSON uses the
-planned standard-library indentation, which can
-differ from Minerva Prettier's compact array formatting.
+CSV; the importer does not accept that obsolete column. Generated JSON uses
+two-space indentation and compacts schedule pairs when the complete line fits
+Minerva's default 80-column formatting. Unchanged JSON retains its existing bytes.
 
 The parser can currently be called from Python:
 

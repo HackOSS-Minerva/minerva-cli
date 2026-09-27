@@ -1,6 +1,7 @@
 """Deterministic tenant rendering and a single, Git-independent file writer."""
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -41,6 +42,23 @@ def _mdx(content: str) -> str:
     if not content:
         return ""
     return content.replace("\r\n", "\n").replace("\r", "\n").rstrip("\n") + "\n"
+
+
+def _config_json(config: dict) -> str:
+    content = json.dumps(config, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
+
+    def compact_schedule(match: re.Match) -> str:
+        prefix, opens, closes, comma = match.groups()
+        line = f"{prefix}[{opens}, {closes}]{comma}"
+        return line if len(line) <= 80 else match.group(0)
+
+    # Minerva's schedule pairs sit three levels deep. Match only timestamp arrays,
+    # keeping json.dumps responsible for escaping and every other JSON value.
+    return re.sub(
+        r'(?m)^( {6}"[^"\n]+": )\[\n {8}("[0-9T:+.Z-]+"),\n'
+        r' {8}("[0-9T:+.Z-]+")\n {6}\](,?)$',
+        compact_schedule, content,
+    )
 
 
 def _identifier(slug: str) -> str:
@@ -106,7 +124,7 @@ def build_plan(repo: Path, tenants: list[TenantInput]) -> SyncPlan:
     for tenant in sorted(tenants, key=lambda item: item.slug):
         base = Path("tenants") / tenant.slug
         relative = base / f"{tenant.slug}.json"
-        content = json.dumps(tenant.config, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
+        content = _config_json(tenant.config)
         previous = _read(repo, relative)
         if previous is not None:
             try:
