@@ -65,6 +65,8 @@ Before publishing, origin's push URL must match the fixed Minerva repository.
 PR creation explicitly selects that repository, overriding any gh default.
 An unchanged import creates no branch, commit or PR; normal preflight still runs.
 Failures return a nonzero exit code with the failed stage and preserved branch.
+Operational logs go to stderr with timestamp, level, logger, source file/line,
+function and message. Raw Git/gh failure output is omitted to avoid exposing credentials.
 If PR creation fails after push, the remote branch remains. Inspect that state
 before retrying; the command does not retry or roll back partial work. Application
 builds/tests are not automatically run or claimed in the generated PR.

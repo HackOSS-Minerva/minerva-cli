@@ -6,6 +6,10 @@ from pathlib import Path
 MINERVA_CHECKOUT = Path(__file__).resolve().parents[2] / "minerva"
 MINERVA_REPOSITORY = "HackOSS-Minerva/minerva"
 BASE_BRANCH = "main"
+LOG_FORMAT = (
+    "%(asctime)s | %(levelname)-8s | %(name)s"
+    " | %(filename)s:%(lineno)d | %(funcName)s | %(message)s"
+)
 
 # Question title, config path, validation kind, required answer.
 FIELDS = (

@@ -17,8 +17,8 @@ def _run(repo: Path, *args: str, input_text: str | None = None) -> str:
             env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"},
         ).stdout.strip()
     except subprocess.CalledProcessError as error:
-        detail = (error.stderr or error.stdout or str(error)).strip()
-        raise RuntimeError(detail) from error
+        # Command output and arguments can contain credentials or tenant data.
+        raise RuntimeError(f"{args[0]} {args[1]} failed (exit {error.returncode})") from error
     except OSError as error:
         raise RuntimeError(str(error)) from error
 

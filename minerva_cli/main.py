@@ -1,5 +1,6 @@
 """Tenant configuration commands for Minerva."""
 
+import logging
 from pathlib import Path
 from typing import Annotated
 
@@ -9,6 +10,8 @@ from . import constants
 from .generate import build_plan
 from .git import preflight, publish, validate_checkout
 from .tenants import parse_tenants
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 tenants = typer.Typer(no_args_is_help=True)
@@ -29,21 +32,22 @@ def sync(
         if not dry_run:
             preflight(repo)
         plan = build_plan(repo, parsed)
-        typer.echo("Processed tenants: " + (", ".join(plan.processed_slugs) or "none"))
+        logger.info("Processed tenants: %d", len(plan.processed_slugs))
         if not plan.changes:
-            typer.echo("No changes; no branch or PR created.")
+            logger.info("No changes; no branch or PR created.")
         elif dry_run:
-            typer.echo("Dry-run; files that would change:")
+            logger.info("Dry-run; files that would change:")
             for path in plan.changes:
-                typer.echo(f"  {path}")
+                logger.info("  %s", path)
         else:
-            typer.echo(publish(repo, plan, draft=draft))
+            logger.info("Created PR: %s", publish(repo, plan, draft=draft))
     except (ValueError, OSError, RuntimeError) as error:
-        typer.echo(f"Error: {error}", err=True)
+        logger.error("%s", error)
         raise typer.Exit(code=1) from error
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format=constants.LOG_FORMAT)
     app()
 
 

@@ -110,7 +110,7 @@ def parse_tenants(path: Path) -> list[TenantInput]:
             missing = expected - set(headers)
             unknown = set(headers) - expected - {"Timestamp"}
             if missing or unknown:
-                fail(1, "headers", f"missing: {sorted(missing)}; unknown: {sorted(unknown)}")
+                fail(1, "headers", f"missing: {sorted(missing)}; unknown columns: {len(unknown)}")
             # Count CSV records, not physical lines inside quoted Markdown answers.
             while True:
                 row_number += 1
