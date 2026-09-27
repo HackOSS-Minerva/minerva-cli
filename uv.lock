@@ -3,6 +3,6 @@ revision = 3
 requires-python = ">=3.12"
 
 [[package]]
-name = "minerva-tenant-sync"
+name = "minerva-cli"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }

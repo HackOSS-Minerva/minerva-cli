@@ -59,13 +59,13 @@ DESCRIPTIONS = (
     ("Event rules", "rules.mdx", "markdown", "rules"),
     ("Venue information", "venue.mdx", "markdown", "venue"),
     ("Code of conduct", "code-of-conduct.mdx", "markdown", "codeOfConduct"),
-    ("Judge orientation guide", "judge-orientation.mdx", "markdown", "orientation"),
 )
 HEADERS = (
     *(title for title, *_ in FIELDS),
     *(title + suffix for title, *_ in SCHEDULES for suffix in (" opens", " closes")),
     *(title for title, *_ in DESCRIPTIONS),
 )
+SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 EMAIL = re.compile(
     r"(?!\.)(?!.*\.\.)[A-Za-z0-9_'+\-.]*[A-Za-z0-9_+-]@"
     r"(?:[A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}"
@@ -124,7 +124,7 @@ def parse_row(answers: dict[str, str], row: int) -> TenantInput:
         if required and not value:
             fail(row, title, "required")
         if value:
-            if kind == "slug" and not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", value):
+            if kind == "slug" and not SLUG.fullmatch(value):
                 fail(row, title, "expected lowercase letters, digits and single hyphens")
             if kind == "url":
                 validate_url(value, row, title)
