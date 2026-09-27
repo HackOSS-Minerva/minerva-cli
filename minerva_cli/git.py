@@ -6,6 +6,7 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .constants import BASE_BRANCH, MINERVA_REPOSITORY
 from .generate import SyncPlan, apply_plan
 
 
@@ -25,7 +26,7 @@ def _run(repo: Path, *args: str, input_text: str | None = None) -> str:
 def validate_checkout(repo: Path) -> None:
     root = Path(_run(repo, "git", "rev-parse", "--show-toplevel")).resolve()
     if root != repo.resolve():
-        raise RuntimeError("--repo must point to the Minerva repository root")
+        raise RuntimeError("Minerva checkout must point to the repository root")
     hook = repo / "hooks/get-tenant.ts"
     if not ((repo / "package.json").is_file() and (repo / "tenants/generated.ts").is_file()
             and hook.is_file()
@@ -33,7 +34,7 @@ def validate_checkout(repo: Path) -> None:
         raise RuntimeError("Minerva registry integration is missing; install it before tenant sync")
 
 
-def preflight(repo: Path, base: str = "main") -> None:
+def preflight(repo: Path, base: str = BASE_BRANCH) -> None:
     stage = "base validation"
     try:
         if base.startswith("-"):
@@ -61,7 +62,7 @@ def preflight(repo: Path, base: str = "main") -> None:
         raise RuntimeError(f"Preflight failed at {stage}: {error}") from error
 
 
-def publish(repo: Path, plan: SyncPlan, base: str = "main", draft: bool = False) -> str:
+def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = False) -> str:
     """Publish a plan after preflight; preserve local work on every failure."""
     if not plan.changes:
         return ""
@@ -69,8 +70,10 @@ def publish(repo: Path, plan: SyncPlan, base: str = "main", draft: bool = False)
     created = pushed = False
     try:
         stage = "origin repository"
-        repository = _run(repo, "git", "remote", "get-url", "--push", "origin").removesuffix(".git")
+        repository = _run(repo, "git", "remote", "get-url", "--push", "--all", "origin").removesuffix(".git")
         repository = re.sub(r"^git@([^:]+):", r"https://\1/", repository)
+        if repository.casefold() != f"https://github.com/{MINERVA_REPOSITORY}".casefold():
+            raise RuntimeError(f"origin must have one push URL targeting {MINERVA_REPOSITORY}")
         stage = "branch creation"
         _run(repo, "git", "switch", "-c", branch)
         created = True
@@ -95,7 +98,7 @@ def publish(repo: Path, plan: SyncPlan, base: str = "main", draft: bool = False)
             "### Impact & Edge Cases\n"
             "- Included rows are authoritative; omitted tenants remain unchanged.\n"
         )
-        args = ["gh", "pr", "create", "--repo", repository, "--base", base, "--head", branch,
+        args = ["gh", "pr", "create", "--repo", MINERVA_REPOSITORY, "--base", base, "--head", branch,
                 "--title", title, "--body-file", "-"]
         if draft:
             args.append("--draft")

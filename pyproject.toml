@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Internal tenant configuration tooling for Minerva"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "typer>=0.27.2",
+]
 
 [project.scripts]
 minerva-cli = "minerva_cli.main:main"

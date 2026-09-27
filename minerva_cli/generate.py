@@ -5,7 +5,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from .tenants import DESCRIPTIONS, SLUG, TenantInput
+from .constants import DESCRIPTIONS, SLUG
+from .tenants import TenantInput
 
 
 @dataclass

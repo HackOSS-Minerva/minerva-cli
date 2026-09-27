@@ -16,6 +16,19 @@ cd minerva-cli
 uv sync
 ```
 
+`minerva-cli` expects the Minerva checkout at `../minerva`, relative to the
+CLI repository, not the shell's current directory:
+
+```text
+parent-folder/
+├── minerva/
+└── minerva-cli/
+```
+
+For another layout, update `MINERVA_CHECKOUT` in `minerva_cli/constants.py`.
+Use an absolute path for a custom location. Run from the CLI checkout with
+`uv sync` / `uv run`; the default layout assumes this editable installation.
+
 An organization administrator must grant the relevant GitHub team write access.
 Maintainers also need editor access to the Google Form and response sheet.
 Both sharing steps are pending manual setup before team use.
@@ -31,14 +44,14 @@ Both sharing steps are pending manual setup before team use.
    the resulting PR:
 
 ```sh
-uv run minerva-cli tenants sync /path/to/responses.csv --repo /path/to/minerva --dry-run
-uv run minerva-cli tenants sync /path/to/responses.csv --repo /path/to/minerva
+uv run minerva-cli tenants sync /path/to/responses.csv --dry-run
+uv run minerva-cli tenants sync /path/to/responses.csv
 ```
 
-Use `--draft` for a draft PR. To target an unmerged integration branch, check out
-that branch in Minerva, update it, then pass `--base fardinzam/tenant-sync-integration`.
-The default base is `main`. Relative CSV paths are resolved from your current
-directory, not from the Minerva checkout. Quote paths containing spaces.
+Use `--draft` for a draft PR. The target is `HackOSS-Minerva/minerva` and the base
+is `main`, defined in `constants.py`; there are no `--repo` or `--base` options.
+Relative CSV paths are resolved from your current directory, not from the
+Minerva checkout. Quote paths containing spaces.
 
 Dry-run performs only local reads; it does not fetch, authenticate, write files or
 change Git state. Normal mode requires a clean checkout (including untracked files),
@@ -47,8 +60,9 @@ It checks `user.name`, `user.email` and `gh auth status` without changing creden
 It never automatically switches the base, resets or stashes work.
 
 A changed import creates `tenant-sync/<UTC timestamp>`, writes and commits only
-planned tenant paths, pushes the branch, then opens a PR against the selected base.
-PR creation explicitly selects origin's push repository, overriding any gh default.
+planned tenant paths, pushes the branch, then opens a PR against `main`.
+Before publishing, origin's push URL must match the fixed Minerva repository.
+PR creation explicitly selects that repository, overriding any gh default.
 An unchanged import creates no branch, commit or PR; normal preflight still runs.
 Failures return a nonzero exit code with the failed stage and preserved branch.
 If PR creation fails after push, the remote branch remains. Inspect that state
@@ -82,6 +96,6 @@ uv sync --locked
 uv build
 ```
 
-There are no runtime Python dependencies. Do not commit downloaded responses,
+Typer provides command parsing and help. Do not commit downloaded responses,
 credentials, planning artifacts, or build outputs. Keep local environments and
 caches excluded from Git.
