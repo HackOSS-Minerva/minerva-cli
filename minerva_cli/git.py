@@ -3,17 +3,16 @@
 import os
 import re
 import subprocess
-import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
 from .generate import SyncPlan, apply_plan
 
 
-def _run(repo: Path, *args: str) -> str:
+def _run(repo: Path, *args: str, input_text: str | None = None) -> str:
     try:
         return subprocess.run(
-            args, cwd=repo, check=True, capture_output=True, text=True,
+            args, cwd=repo, input=input_text, check=True, capture_output=True, text=True,
             env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"},
         ).stdout.strip()
     except subprocess.CalledProcessError as error:
@@ -67,7 +66,6 @@ def publish(repo: Path, plan: SyncPlan, base: str = "main", draft: bool = False)
     if not plan.changes:
         return ""
     branch = "tenant-sync/" + datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
-    stage = "branch creation"
     created = pushed = False
     try:
         stage = "origin repository"
@@ -97,14 +95,11 @@ def publish(repo: Path, plan: SyncPlan, base: str = "main", draft: bool = False)
             "### Impact & Edge Cases\n"
             "- Included rows are authoritative; omitted tenants remain unchanged.\n"
         )
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".md") as file:
-            file.write(body)
-            file.flush()
-            args = ["gh", "pr", "create", "--repo", repository, "--base", base, "--head", branch,
-                    "--title", title, "--body-file", file.name]
-            if draft:
-                args.append("--draft")
-            return _run(repo, *args)
+        args = ["gh", "pr", "create", "--repo", repository, "--base", base, "--head", branch,
+                "--title", title, "--body-file", "-"]
+        if draft:
+            args.append("--draft")
+        return _run(repo, *args, input_text=body)
     except (RuntimeError, OSError, ValueError) as error:
         preserved = f"; preserved {'pushed ' if pushed else ''}branch {branch}" if created else ""
         raise RuntimeError(f"Sync failed at {stage}{preserved}: {error}") from error

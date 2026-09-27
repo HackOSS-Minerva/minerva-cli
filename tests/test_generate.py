@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from helpers import response, write_csv
 from minerva_cli.generate import SyncPlan, apply_plan, build_plan
@@ -166,6 +167,38 @@ class GenerationTests(unittest.TestCase):
         (self.repo / "tenants/Bad_Name").mkdir()
         with self.assertRaises(ValueError):
             build_plan(self.repo, [self.tenant])
+
+    def test_omitted_import_validation_does_not_read_file_contents(self):
+        apply_plan(self.repo, build_plan(self.repo, [self.tenant]))
+        read_bytes = Path.read_bytes
+
+        def checked_read(path):
+            self.assertFalse(path.is_relative_to((self.repo / "tenants/example-hack").resolve()))
+            return read_bytes(path)
+
+        with patch.object(Path, "read_bytes", autospec=True, side_effect=checked_read):
+            self.assertEqual(build_plan(self.repo, []).changes, {})
+
+    def test_description_symlinks_rejected_for_planned_and_omitted_tenants(self):
+        apply_plan(self.repo, build_plan(self.repo, [self.tenant]))
+        outside = self.root / "outside.mdx"
+        outside.write_text("Keep outside content")
+        path = self.repo / "tenants/example-hack/descriptions/rules.mdx"
+        path.unlink()
+        path.symlink_to(outside)
+        for tenants in ([], [self.tenant]):
+            with self.subTest(processed=bool(tenants)), self.assertRaises(ValueError):
+                build_plan(self.repo, tenants)
+        self.assertEqual(outside.read_text(), "Keep outside content")
+
+    def test_description_directories_rejected_for_planned_and_omitted_tenants(self):
+        apply_plan(self.repo, build_plan(self.repo, [self.tenant]))
+        path = self.repo / "tenants/example-hack/descriptions/rules.mdx"
+        path.unlink()
+        path.mkdir()
+        for tenants in ([], [self.tenant]):
+            with self.subTest(processed=bool(tenants)), self.assertRaises(ValueError):
+                build_plan(self.repo, tenants)
 
     def test_symlink_tenant_or_output_rejected(self):
         outside = self.root / "outside"

@@ -36,7 +36,7 @@ class GitTests(unittest.TestCase):
         if args[0] == "gh":
             self.gh_calls.append((args, kwargs["cwd"]))
             if tuple(args[1:3]) == ("pr", "create"):
-                self.body = Path(args[args.index("--body-file") + 1]).read_text()
+                self.body = kwargs.get("input", "")
                 return subprocess.CompletedProcess(args, 0, "https://github.com/example/minerva/pull/1\n", "")
             return subprocess.CompletedProcess(args, 0, "", "")
         return self.real_run(args, **kwargs)
@@ -121,7 +121,7 @@ class GitTests(unittest.TestCase):
         self.assertIn("example-hack", self.body)
         for section in ("Context", "Core Changes", "Testing & Verification", "Impact & Edge Cases"):
             self.assertIn("### " + section, self.body)
-        self.assertFalse(Path(args[args.index("--body-file") + 1]).exists())
+        self.assertEqual(args[args.index("--body-file") + 1], "-")
 
     def test_noop_does_not_run_git_or_gh(self):
         with patch("minerva_cli.git.subprocess.run", side_effect=AssertionError("unexpected command")):

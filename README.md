@@ -1,15 +1,8 @@
-# Minerva tenant sync
+# Minerva CLI
 
 Internal tooling for converting Google Forms response CSVs into Minerva tenant
-configuration. Maintained in the private `HackOSS-Minerva/minerva-tenant-sync`
+configuration. Maintained in the private `HackOSS-Minerva/minerva-cli`
 repository; Minerva does not install or invoke this project.
-
-## Current status
-
-CSV parsing, generation, dry-run and Git/PR automation are implemented. Minerva
-must already contain the generated registry integration before this command can
-run. That separate integration is not installed yet. A pull-request test workflow
-is included; its first GitHub run awaits publication.
 
 ## Setup
 
@@ -18,8 +11,8 @@ this private repository. Publishing requires GitHub CLI (`gh`) and uses each ope
 name/email and existing `gh` authentication; no shared credentials are configured.
 
 ```sh
-git clone https://github.com/HackOSS-Minerva/minerva-tenant-sync.git
-cd minerva-tenant-sync
+git clone https://github.com/HackOSS-Minerva/minerva-cli.git
+cd minerva-cli
 uv sync
 ```
 
@@ -43,7 +36,7 @@ uv run python -m minerva_cli tenants sync /path/to/responses.csv --repo /path/to
 ```
 
 Use `--draft` for a draft PR. To target an unmerged integration branch, check out
-that branch in Minerva, update it, then pass `--base tenant-sync/registry-integration`.
+that branch in Minerva, update it, then pass `--base fardinzam/tenant-sync-integration`.
 The default base is `main`. Relative CSV paths are resolved from your current
 directory, not from the Minerva checkout. Quote paths containing spaces.
 
@@ -65,20 +58,9 @@ builds/tests are not automatically run or claimed in the generated PR.
 Current integration prerequisites: the `tenants/generated.ts` registry must be
 imported by `hooks/get-tenant.ts`, and every existing tenant must have its required
 10 description files. The judge-orientation opening/closing schedule remains in
-configuration but has no Markdown description. Remove the obsolete “Judge
-orientation guide” question and its response-sheet column before exporting a new
-CSV; the importer does not accept that obsolete column. Generated JSON uses
+configuration but has no Markdown description. Generated JSON uses
 two-space indentation and compacts schedule pairs when the complete line fits
 Minerva's default 80-column formatting. Unchanged JSON retains its existing bytes.
-
-The parser can currently be called from Python:
-
-```python
-from pathlib import Path
-from minerva_cli.tenants import parse_tenants
-
-tenants = parse_tenants(Path("/path/to/responses.csv"))
-```
 
 Every included tenant row is authoritative; blank optional values clear values
 rather than inheriting old configuration. Tenants omitted from the input are not

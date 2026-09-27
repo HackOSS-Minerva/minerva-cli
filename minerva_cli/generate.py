@@ -142,8 +142,7 @@ def build_plan(repo: Path, tenants: list[TenantInput]) -> SyncPlan:
         base = Path("tenants") / slug
         imports = [base / f"{slug}.json", *(base / "descriptions" / item[1] for item in DESCRIPTIONS)]
         for relative in imports:
-            previous = _read(repo, relative)
-            if relative not in rendered and previous is None:
+            if relative not in rendered and not _safe_path(repo, relative).is_file():
                 raise ValueError(f"Missing tenant import: {relative}")
     rendered[Path("tenants/generated.ts")] = _registry(sorted(slugs))
     changes = {relative: content for relative, content in rendered.items()
