@@ -1,9 +1,20 @@
 [project]
-name = "minerva-tenant-sync"
+name = "minerva-cli"
 version = "0.1.0"
 description = "Internal tenant configuration tooling for Minerva"
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
 
-[tool.uv]
-package = false
+[project.scripts]
+minerva-cli = "minerva_cli.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["minerva_cli"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/minerva_cli", "/README.md", "/pyproject.toml", "/uv.lock", "/.python-version"]

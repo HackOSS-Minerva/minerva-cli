@@ -1,4 +1,4 @@
-"""Run with uv run python -m minerva_cli tenants sync CSV --repo PATH."""
+"""Run with uv run minerva-cli tenants sync CSV --repo PATH."""
 
 import argparse
 import sys
@@ -10,7 +10,7 @@ from .tenants import parse_tenants
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="minerva_cli")
+    parser = argparse.ArgumentParser(prog="minerva-cli")
     commands = parser.add_subparsers(dest="command", required=True)
     tenants = commands.add_parser("tenants", help="manage tenant configuration")
     actions = tenants.add_subparsers(dest="action", required=True)

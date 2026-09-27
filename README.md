@@ -31,8 +31,8 @@ Both sharing steps are pending manual setup before team use.
    the resulting PR:
 
 ```sh
-uv run python -m minerva_cli tenants sync /path/to/responses.csv --repo /path/to/minerva --dry-run
-uv run python -m minerva_cli tenants sync /path/to/responses.csv --repo /path/to/minerva
+uv run minerva-cli tenants sync /path/to/responses.csv --repo /path/to/minerva --dry-run
+uv run minerva-cli tenants sync /path/to/responses.csv --repo /path/to/minerva
 ```
 
 Use `--draft` for a draft PR. To target an unmerged integration branch, check out
@@ -75,17 +75,13 @@ newline normalization. URL validation rejects embedded control characters, an
 intentional tightening of the old importer. Compatibility cases cover common
 inputs; this is not a comprehensive RFC/WHATWG validation library.
 
-## Tests
-
-Pull requests run this suite on Ubuntu with Python 3.12 and uv 0.11.23. Run the same
-commands locally:
+## Build
 
 ```sh
 uv sync --locked
-uv run --locked python -m unittest discover -s tests -v
+uv build
 ```
 
-Tests use synthetic responses and temporary local files, without Google/GitHub
-credentials, Minerva dependencies or downloaded tenant data. There are no runtime
-Python dependencies. Do not commit downloaded responses, credentials or planning
-artifacts. Keep local environments and caches excluded from Git.
+There are no runtime Python dependencies. Do not commit downloaded responses,
+credentials, planning artifacts, or build outputs. Keep local environments and
+caches excluded from Git.
