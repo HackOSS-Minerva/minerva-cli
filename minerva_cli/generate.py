@@ -134,18 +134,31 @@ def build_plan(repo: Path, tenants: list[TenantInput]) -> SyncPlan:
     for tenant in sorted(tenants, key=lambda item: item.slug):
         base = Path("tenants") / tenant.slug
         relative = base / f"{tenant.slug}.json"
-        content = _config_json(tenant.config)
         previous = _read(repo, relative)
+        existing = {}
         if previous is not None:
             try:
                 existing = json.loads(previous)
-                # Compare JSON values without Python's True == 1 coercion.
-                if json.dumps(existing, sort_keys=True, allow_nan=False) == json.dumps(
-                    tenant.config, sort_keys=True, allow_nan=False
+                if not isinstance(existing, dict) or not isinstance(
+                    existing.get("event", {}), dict
                 ):
-                    content = previous.decode("utf-8")
+                    raise ValueError("expected a config object with an event object")
             except (ValueError, UnicodeError) as error:
                 raise ValueError(f"Invalid existing JSON: {relative}: {error}") from error
+        # These fields are maintained in Minerva, not collected by the Form.
+        config = {
+            **tenant.config,
+            "heart": existing.get("heart", ""),
+            "event": dict(tenant.config["event"]),
+        }
+        if "openOffset" in existing.get("event", {}):
+            config["event"]["openOffset"] = existing["event"]["openOffset"]
+        content = _config_json(config)
+        # Compare JSON values without Python's True == 1 coercion.
+        if previous is not None and json.dumps(
+            existing, sort_keys=True, allow_nan=False
+        ) == json.dumps(config, sort_keys=True, allow_nan=False):
+            content = previous.decode("utf-8")
         rendered[relative] = content
         for _, filename, *_ in DESCRIPTIONS:
             rendered[base / "descriptions" / filename] = _mdx(tenant.descriptions[filename])

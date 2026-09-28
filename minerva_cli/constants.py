@@ -7,10 +7,8 @@ MINERVA_CHECKOUT = Path(__file__).resolve().parents[2] / "minerva"
 MINERVA_REPOSITORY = "HackOSS-Minerva/minerva"
 BASE_BRANCH = "main"
 PACIFIC_TIMEZONE = "America/Los_Angeles"
-PACIFIC_DATETIME = re.compile(
-    r"(\d{4}-\d{2}-\d{2}),\s*(0?[1-9]|1[0-2]):([0-5]\d)\s+(AM|PM),\s*PT",
-    re.ASCII | re.IGNORECASE,
-)
+DATE_FORMATS = ("%Y-%m-%d", "%m/%d/%Y")
+TIME_FORMATS = ("%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p")
 LOG_FORMAT = (
     "%(asctime)s | %(levelname)-8s | %(name)s"
     " | %(filename)s:%(lineno)d | %(funcName)s | %(message)s"
@@ -26,7 +24,6 @@ FIELDS = (
     ("Instagram URL", "instagram", "url", False),
     ("LinkedIn URL", "linkedin", "url", False),
     ("Devpost event URL", "devpost", "url", False),
-    ("Brand heart or symbol", "heart", "text", False),
     ("Logo URL", "logo", "url", True),
     ("Google Calendar ID", "calendarid", "text", True),
     ("Event name", "event.name", "text", True),
@@ -34,7 +31,6 @@ FIELDS = (
     ("Event end", "event.endTime", "datetime", True),
     ("Submission deadline", "event.deadline", "datetime", True),
     ("Git commit grace period (minutes)", "event.gitCommitGraceWindowMinutes", "integer", False),
-    ("Registration opening override (advanced)", "event.openOffset", "text", False),
 )
 # Question prefix, config section, lock key. Each lock has opens/closes answers.
 SCHEDULES = (
@@ -69,17 +65,21 @@ DESCRIPTIONS = (
     ("Code of conduct", "code-of-conduct.mdx", "markdown", "codeOfConduct"),
 )
 HEADERS = (
-    *(title for title, *_ in FIELDS),
-    *(title + suffix for title, *_ in SCHEDULES for suffix in (" opens", " closes")),
+    *(
+        title + part
+        for title, _, kind, _ in FIELDS
+        for part in ((" date", " time") if kind == "datetime" else ("",))
+    ),
+    *(
+        title + suffix + part
+        for title, *_ in SCHEDULES
+        for suffix in (" opens", " closes")
+        for part in (" date", " time")
+    ),
     *(title for title, *_ in DESCRIPTIONS),
 )
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 EMAIL = re.compile(
     r"(?!\.)(?!.*\.\.)[A-Za-z0-9_'+\-.]*[A-Za-z0-9_+-]@"
     r"(?:[A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}"
-)
-ISO_DATETIME = re.compile(
-    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?"
-    r"(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)",
-    re.ASCII,
 )
