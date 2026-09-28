@@ -6,18 +6,24 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .constants import BASE_BRANCH, MINERVA_REPOSITORY
 from .generate import SyncPlan, apply_plan
 
 
 def _run(repo: Path, *args: str, input_text: str | None = None) -> str:
     try:
         return subprocess.run(
-            args, cwd=repo, input=input_text, check=True, capture_output=True, text=True,
+            args,
+            cwd=repo,
+            input=input_text,
+            check=True,
+            capture_output=True,
+            text=True,
             env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"},
         ).stdout.strip()
     except subprocess.CalledProcessError as error:
-        detail = (error.stderr or error.stdout or str(error)).strip()
-        raise RuntimeError(detail) from error
+        # Command output and arguments can contain credentials or tenant data.
+        raise RuntimeError(f"{args[0]} {args[1]} failed (exit {error.returncode})") from error
     except OSError as error:
         raise RuntimeError(str(error)) from error
 
@@ -25,15 +31,18 @@ def _run(repo: Path, *args: str, input_text: str | None = None) -> str:
 def validate_checkout(repo: Path) -> None:
     root = Path(_run(repo, "git", "rev-parse", "--show-toplevel")).resolve()
     if root != repo.resolve():
-        raise RuntimeError("--repo must point to the Minerva repository root")
+        raise RuntimeError("Minerva checkout must point to the repository root")
     hook = repo / "hooks/get-tenant.ts"
-    if not ((repo / "package.json").is_file() and (repo / "tenants/generated.ts").is_file()
-            and hook.is_file()
-            and re.search(r'''\bfrom\s+["']@/tenants/generated["']''', hook.read_text())):
+    if not (
+        (repo / "package.json").is_file()
+        and (repo / "tenants/generated.ts").is_file()
+        and hook.is_file()
+        and re.search(r"""\bfrom\s+["']@/tenants/generated["']""", hook.read_text())
+    ):
         raise RuntimeError("Minerva registry integration is missing; install it before tenant sync")
 
 
-def preflight(repo: Path, base: str = "main") -> None:
+def preflight(repo: Path, base: str = BASE_BRANCH) -> None:
     stage = "base validation"
     try:
         if base.startswith("-"):
@@ -61,7 +70,7 @@ def preflight(repo: Path, base: str = "main") -> None:
         raise RuntimeError(f"Preflight failed at {stage}: {error}") from error
 
 
-def publish(repo: Path, plan: SyncPlan, base: str = "main", draft: bool = False) -> str:
+def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = False) -> str:
     """Publish a plan after preflight; preserve local work on every failure."""
     if not plan.changes:
         return ""
@@ -69,8 +78,12 @@ def publish(repo: Path, plan: SyncPlan, base: str = "main", draft: bool = False)
     created = pushed = False
     try:
         stage = "origin repository"
-        repository = _run(repo, "git", "remote", "get-url", "--push", "origin").removesuffix(".git")
+        repository = _run(
+            repo, "git", "remote", "get-url", "--push", "--all", "origin"
+        ).removesuffix(".git")
         repository = re.sub(r"^git@([^:]+):", r"https://\1/", repository)
+        if repository.casefold() != f"https://github.com/{MINERVA_REPOSITORY}".casefold():
+            raise RuntimeError(f"origin must have one push URL targeting {MINERVA_REPOSITORY}")
         stage = "branch creation"
         _run(repo, "git", "switch", "-c", branch)
         created = True
@@ -88,15 +101,31 @@ def publish(repo: Path, plan: SyncPlan, base: str = "main", draft: bool = False)
         body = (
             "### Context\nUpdate tenant configuration from the exported response CSV.\n\n"
             "### Core Changes\n"
-            + "".join(f"- Sync `{slug}` configuration and description files.\n" for slug in plan.processed_slugs)
+            + "".join(
+                f"- Sync `{slug}` configuration and description files.\n"
+                for slug in plan.processed_slugs
+            )
             + "\n### Testing & Verification\n"
             "- Validated CSV answers and generated paths; checked the clean, up-to-date base.\n"
             "- Application build and tests were not run by this command.\n\n"
             "### Impact & Edge Cases\n"
             "- Included rows are authoritative; omitted tenants remain unchanged.\n"
         )
-        args = ["gh", "pr", "create", "--repo", repository, "--base", base, "--head", branch,
-                "--title", title, "--body-file", "-"]
+        args = [
+            "gh",
+            "pr",
+            "create",
+            "--repo",
+            MINERVA_REPOSITORY,
+            "--base",
+            base,
+            "--head",
+            branch,
+            "--title",
+            title,
+            "--body-file",
+            "-",
+        ]
         if draft:
             args.append("--draft")
         return _run(repo, *args, input_text=body)

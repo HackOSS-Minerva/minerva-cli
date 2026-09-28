@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Internal tenant configuration tooling for Minerva"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "typer>=0.27.2",
+]
 
 [project.scripts]
 minerva-cli = "minerva_cli.main:main"
@@ -18,3 +20,15 @@ packages = ["minerva_cli"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/minerva_cli", "/README.md", "/pyproject.toml", "/uv.lock", "/.python-version"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.9",
+]
