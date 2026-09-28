@@ -21,7 +21,9 @@ app.add_typer(tenants, name="tenants", help="Manage tenant configuration.")
 @tenants.command()
 def sync(
     csv: Annotated[Path, typer.Argument(help="Google Forms response CSV.")],
-    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show changes without writing or fetching.")] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Show changes without writing or fetching.")
+    ] = False,
     draft: Annotated[bool, typer.Option("--draft", help="Create a draft PR.")] = False,
 ) -> None:
     """Generate a tenant configuration PR from CSV."""

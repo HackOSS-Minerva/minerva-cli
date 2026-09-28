@@ -58,7 +58,8 @@ def _config_json(config: dict) -> str:
     return re.sub(
         r'(?m)^( {6}"[^"\n]+": )\[\n {8}("[0-9T:+.Z-]+"),\n'
         r' {8}("[0-9T:+.Z-]+")\n {6}\](,?)$',
-        compact_schedule, content,
+        compact_schedule,
+        content,
     )
 
 
@@ -72,20 +73,28 @@ def _key(slug: str) -> str:
 
 def _registry(slugs: list[str]) -> str:
     lines = []
-    descriptions = [(filename, Path(filename).stem.replace("-", "_"), group, export)
-                    for _, filename, group, export in DESCRIPTIONS]
+    descriptions = [
+        (filename, Path(filename).stem.replace("-", "_"), group, export)
+        for _, filename, group, export in DESCRIPTIONS
+    ]
     for slug in slugs:
         identifier = _identifier(slug)
         prefix = f"@/tenants/{slug}"
         lines.append(f"import {identifier}_config from {json.dumps(f'{prefix}/{slug}.json')};")
         for filename, suffix, *_ in descriptions:
-            lines.append(f"import {identifier}_{suffix} from {json.dumps(f'{prefix}/descriptions/{filename}')};")
+            lines.append(
+                f"import {identifier}_{suffix} from {json.dumps(f'{prefix}/descriptions/{filename}')};"
+            )
     slug_line = f"export const tenantSlugs = {json.dumps(slugs)} as const;"
     lines += [""]
     if len(slug_line) <= 80:
         lines.append(slug_line)
     else:
-        lines += ["export const tenantSlugs = [", *(f"  {json.dumps(slug)}," for slug in slugs), "] as const;"]
+        lines += [
+            "export const tenantSlugs = [",
+            *(f"  {json.dumps(slug)}," for slug in slugs),
+            "] as const;",
+        ]
     lines += ["", "export const tenantConfigs = {"]
     for slug in slugs:
         lines.append(f"  {_key(slug)}: {_identifier(slug)}_config,")
@@ -131,7 +140,9 @@ def build_plan(repo: Path, tenants: list[TenantInput]) -> SyncPlan:
             try:
                 existing = json.loads(previous)
                 # Compare JSON values without Python's True == 1 coercion.
-                if json.dumps(existing, sort_keys=True, allow_nan=False) == json.dumps(tenant.config, sort_keys=True, allow_nan=False):
+                if json.dumps(existing, sort_keys=True, allow_nan=False) == json.dumps(
+                    tenant.config, sort_keys=True, allow_nan=False
+                ):
                     content = previous.decode("utf-8")
             except (ValueError, UnicodeError) as error:
                 raise ValueError(f"Invalid existing JSON: {relative}: {error}") from error
@@ -141,13 +152,19 @@ def build_plan(repo: Path, tenants: list[TenantInput]) -> SyncPlan:
     # Every registry import must exist or be supplied by this plan.
     for slug in sorted(slugs):
         base = Path("tenants") / slug
-        imports = [base / f"{slug}.json", *(base / "descriptions" / item[1] for item in DESCRIPTIONS)]
+        imports = [
+            base / f"{slug}.json",
+            *(base / "descriptions" / item[1] for item in DESCRIPTIONS),
+        ]
         for relative in imports:
             if relative not in rendered and not _safe_path(repo, relative).is_file():
                 raise ValueError(f"Missing tenant import: {relative}")
     rendered[Path("tenants/generated.ts")] = _registry(sorted(slugs))
-    changes = {relative: content for relative, content in rendered.items()
-               if _read(repo, relative) != content.encode("utf-8")}
+    changes = {
+        relative: content
+        for relative, content in rendered.items()
+        if _read(repo, relative) != content.encode("utf-8")
+    }
     return SyncPlan(sorted(processed), changes)
 
 

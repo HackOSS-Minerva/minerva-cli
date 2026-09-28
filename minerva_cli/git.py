@@ -13,7 +13,12 @@ from .generate import SyncPlan, apply_plan
 def _run(repo: Path, *args: str, input_text: str | None = None) -> str:
     try:
         return subprocess.run(
-            args, cwd=repo, input=input_text, check=True, capture_output=True, text=True,
+            args,
+            cwd=repo,
+            input=input_text,
+            check=True,
+            capture_output=True,
+            text=True,
             env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"},
         ).stdout.strip()
     except subprocess.CalledProcessError as error:
@@ -28,9 +33,12 @@ def validate_checkout(repo: Path) -> None:
     if root != repo.resolve():
         raise RuntimeError("Minerva checkout must point to the repository root")
     hook = repo / "hooks/get-tenant.ts"
-    if not ((repo / "package.json").is_file() and (repo / "tenants/generated.ts").is_file()
-            and hook.is_file()
-            and re.search(r'''\bfrom\s+["']@/tenants/generated["']''', hook.read_text())):
+    if not (
+        (repo / "package.json").is_file()
+        and (repo / "tenants/generated.ts").is_file()
+        and hook.is_file()
+        and re.search(r"""\bfrom\s+["']@/tenants/generated["']""", hook.read_text())
+    ):
         raise RuntimeError("Minerva registry integration is missing; install it before tenant sync")
 
 
@@ -70,7 +78,9 @@ def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = F
     created = pushed = False
     try:
         stage = "origin repository"
-        repository = _run(repo, "git", "remote", "get-url", "--push", "--all", "origin").removesuffix(".git")
+        repository = _run(
+            repo, "git", "remote", "get-url", "--push", "--all", "origin"
+        ).removesuffix(".git")
         repository = re.sub(r"^git@([^:]+):", r"https://\1/", repository)
         if repository.casefold() != f"https://github.com/{MINERVA_REPOSITORY}".casefold():
             raise RuntimeError(f"origin must have one push URL targeting {MINERVA_REPOSITORY}")
@@ -91,15 +101,31 @@ def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = F
         body = (
             "### Context\nUpdate tenant configuration from the exported response CSV.\n\n"
             "### Core Changes\n"
-            + "".join(f"- Sync `{slug}` configuration and description files.\n" for slug in plan.processed_slugs)
+            + "".join(
+                f"- Sync `{slug}` configuration and description files.\n"
+                for slug in plan.processed_slugs
+            )
             + "\n### Testing & Verification\n"
             "- Validated CSV answers and generated paths; checked the clean, up-to-date base.\n"
             "- Application build and tests were not run by this command.\n\n"
             "### Impact & Edge Cases\n"
             "- Included rows are authoritative; omitted tenants remain unchanged.\n"
         )
-        args = ["gh", "pr", "create", "--repo", MINERVA_REPOSITORY, "--base", base, "--head", branch,
-                "--title", title, "--body-file", "-"]
+        args = [
+            "gh",
+            "pr",
+            "create",
+            "--repo",
+            MINERVA_REPOSITORY,
+            "--base",
+            base,
+            "--head",
+            branch,
+            "--title",
+            title,
+            "--body-file",
+            "-",
+        ]
         if draft:
             args.append("--draft")
         return _run(repo, *args, input_text=body)

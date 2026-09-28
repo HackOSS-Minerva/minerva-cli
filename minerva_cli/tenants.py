@@ -36,7 +36,7 @@ def validate_url(value: str, row: int, title: str):
             if not parts.hostname or any(char.isspace() for char in parts.hostname):
                 raise ValueError("missing or invalid hostname")
         if parts.netloc:
-            parts.port  # Validate numeric port and range without network access.
+            _ = parts.port  # Validate numeric port and range without network access.
     except ValueError:
         fail(row, title, "invalid absolute URL")
 
@@ -121,7 +121,7 @@ def parse_tenants(path: Path) -> list[TenantInput]:
                     continue
                 if len(values) != len(headers):
                     fail(row_number, "record", f"expected {len(headers)} cells, got {len(values)}")
-                tenant = parse_row(dict(zip(headers, values)), row_number)
+                tenant = parse_row(dict(zip(headers, values, strict=True)), row_number)
                 if tenant.slug in seen:
                     fail(row_number, "Tenant ID", "duplicate tenant")
                 seen.add(tenant.slug)
