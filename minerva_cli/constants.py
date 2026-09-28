@@ -6,6 +6,11 @@ from pathlib import Path
 MINERVA_CHECKOUT = Path(__file__).resolve().parents[2] / "minerva"
 MINERVA_REPOSITORY = "HackOSS-Minerva/minerva"
 BASE_BRANCH = "main"
+PACIFIC_TIMEZONE = "America/Los_Angeles"
+PACIFIC_DATETIME = re.compile(
+    r"(\d{4}-\d{2}-\d{2}),\s*(0?[1-9]|1[0-2]):([0-5]\d)\s+(AM|PM),\s*PT",
+    re.ASCII | re.IGNORECASE,
+)
 LOG_FORMAT = (
     "%(asctime)s | %(levelname)-8s | %(name)s"
     " | %(filename)s:%(lineno)d | %(funcName)s | %(message)s"
