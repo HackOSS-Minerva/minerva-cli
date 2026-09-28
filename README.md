@@ -32,8 +32,14 @@ absolute path. Use the editable installation created by `uv sync`.
 
 ## Usage
 
-Download the Form response sheet as CSV outside both repositories. From
-`minerva-cli`, prepare a clean Minerva checkout on `main` (preserve existing work first):
+Download the Form response sheet as CSV outside both repositories.
+
+Enter each date/time separately as `2026-11-01, 8:20 AM, PT`. The CLI applies
+California's daylight-saving offset for that date. Existing ISO timestamps remain
+accepted. For a repeated or skipped clock time during a daylight-saving change,
+use an explicit ISO timestamp or choose another time.
+
+From `minerva-cli`, prepare a clean Minerva checkout on `main` (preserve existing work first):
 
 ```sh
 git -C ../minerva switch main
