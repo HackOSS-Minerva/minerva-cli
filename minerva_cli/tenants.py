@@ -3,11 +3,22 @@
 import csv
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from .constants import DESCRIPTIONS, EMAIL, FIELDS, HEADERS, ISO_DATETIME, SCHEDULES, SLUG
+from .constants import (
+    DESCRIPTIONS,
+    EMAIL,
+    FIELDS,
+    HEADERS,
+    ISO_DATETIME,
+    PACIFIC_DATETIME,
+    PACIFIC_TIMEZONE,
+    SCHEDULES,
+    SLUG,
+)
 
 
 @dataclass
@@ -41,13 +52,42 @@ def validate_url(value: str, row: int, title: str):
         fail(row, title, "invalid absolute URL")
 
 
-def validate_datetime(value: str, row: int, title: str) -> datetime:
+def parse_datetime(value: str, row: int, title: str) -> tuple[str, datetime]:
+    """Preserve ISO answers; convert readable Pacific answers to offset timestamps."""
     try:
-        if not ISO_DATETIME.fullmatch(value):
-            raise ValueError("missing explicit timezone or invalid syntax")
-        return datetime.fromisoformat(value)
+        if ISO_DATETIME.fullmatch(value):
+            return value, datetime.fromisoformat(value)
+        match = PACIFIC_DATETIME.fullmatch(value)
+        if not match:
+            raise ValueError("invalid syntax")
+        date, hour, minute, period = match.groups()
+        local = datetime.fromisoformat(date).replace(
+            hour=int(hour) % 12 + (12 if period.upper() == "PM" else 0), minute=int(minute)
+        )
     except ValueError:
-        fail(row, title, "invalid ISO datetime with explicit timezone")
+        fail(row, title, "use YYYY-MM-DD, h:mm AM/PM, PT or an ISO datetime with explicit timezone")
+    try:
+        zone = ZoneInfo(PACIFIC_TIMEZONE)
+    except ZoneInfoNotFoundError:
+        fail(row, title, "Pacific timezone data unavailable; install system timezone data")
+    # Round-trip both folds: zero instants means a skipped time; two means a repeated time.
+    instants = set()
+    try:
+        for fold in (0, 1):
+            instant = local.replace(tzinfo=zone, fold=fold).astimezone(UTC)
+            if instant.astimezone(zone).replace(tzinfo=None) == local:
+                instants.add(instant)
+    except OverflowError:
+        fail(row, title, "Pacific date/time is outside the supported range")
+    if len(instants) != 1:
+        fail(
+            row,
+            title,
+            "ambiguous or nonexistent Pacific time during daylight saving; use an explicit ISO offset",
+        )
+    normalized = instants.pop().astimezone(zone).isoformat()
+    # Fixed-offset datetimes compare by instant even across daylight-saving transitions.
+    return normalized, datetime.fromisoformat(normalized)
 
 
 def parse_row(answers: dict[str, str], row: int) -> TenantInput:
@@ -65,7 +105,7 @@ def parse_row(answers: dict[str, str], row: int) -> TenantInput:
             if kind == "email" and not EMAIL.fullmatch(value):
                 fail(row, title, "invalid email")
             if kind == "datetime":
-                dates[key] = validate_datetime(value, row, title)
+                value, dates[key] = parse_datetime(value, row, title)
             if kind == "integer":
                 if not re.fullmatch(r"0|[1-9][0-9]{0,3}", value) or int(value) > 1440:
                     fail(row, title, "must be an integer between 0 and 1440")
@@ -86,8 +126,9 @@ def parse_row(answers: dict[str, str], row: int) -> TenantInput:
             value = answers[title + suffix].strip()
             if not value:
                 fail(row, title + suffix, "required")
+            value, instant = parse_datetime(value, row, title + suffix)
             values.append(value)
-            instants.append(validate_datetime(value, row, title + suffix))
+            instants.append(instant)
         if instants[1] <= instants[0]:
             fail(row, title + " closes", "must be after opening time")
         config["locks"].setdefault(section, {})[key] = values
