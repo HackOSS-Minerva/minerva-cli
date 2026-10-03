@@ -34,10 +34,12 @@ absolute path. Use the editable installation created by `uv sync`.
 
 Download the Form response sheet as CSV outside both repositories.
 
-Enter each date/time separately as `2026-11-01, 8:20 AM, PT`. The CLI applies
-California's daylight-saving offset for that date. Existing ISO timestamps remain
-accepted. For a repeated or skipped clock time during a daylight-saving change,
-use an explicit ISO timestamp or choose another time.
+Use the Form's separate Date and Time questions for each opening, closing, and
+event timestamp. All times are California time (automatic PST/PDT). Choose another
+time if a daylight-saving transition makes it repeated or nonexistent.
+Maintainers fill in `Tenant ID` in the Sheet before exporting. Keep the Sheet's
+date/time column formats as `yyyy-mm-dd` and `HH:mm:ss`; US-native date and AM/PM
+time exports are also accepted. Older combined date/time CSV exports must be re-exported.
 
 From `minerva-cli`, prepare a clean Minerva checkout on `main` (preserve existing work first):
 
@@ -50,7 +52,9 @@ uv run minerva-cli tenants sync "/path/to/responses.csv" --draft
 
 Dry-run only reads files. The second command **commits, pushes, and opens a draft PR**
 against `HackOSS-Minerva/minerva:main`; omit `--draft` for a ready PR.
-Included rows are authoritative; omitted tenants remain unchanged.
+Included Form fields are authoritative; omitted tenants remain unchanged.
+Existing `heart` and `event.openOffset` values stay unchanged; new tenants use an
+empty heart and no opening override.
 Failures preserve any created branch. Logs go to stderr; inspect preserved work before retrying.
 For a custom checkout location, use that path in the Git commands above.
 
