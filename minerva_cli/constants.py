@@ -6,6 +6,7 @@ from pathlib import Path
 MINERVA_CHECKOUT = Path(__file__).resolve().parents[2] / "minerva"
 MINERVA_REPOSITORY = "HackOSS-Minerva/minerva"
 BASE_BRANCH = "main"
+GIT_COMMIT_GRACE_WINDOW_MINUTES = 15
 PACIFIC_TIMEZONE = "America/Los_Angeles"
 DATE_FORMATS = ("%Y-%m-%d", "%m/%d/%Y")
 TIME_FORMATS = ("%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p")
@@ -30,7 +31,6 @@ FIELDS = (
     ("Event start", "event.startTime", "datetime", True),
     ("Event end", "event.endTime", "datetime", True),
     ("Submission deadline", "event.deadline", "datetime", True),
-    ("Git commit grace period (minutes)", "event.gitCommitGraceWindowMinutes", "integer", False),
 )
 # Question prefix, config section, lock key. Each lock has opens/closes answers.
 SCHEDULES = (
@@ -45,9 +45,6 @@ SCHEDULES = (
     ("Judge submissions", "judge", "submissions"),
     ("Judge orientation", "judge", "orientation"),
     ("Judge certificate", "judge", "certificate"),
-    ("Sponsor resume book", "sponsor", "resume-book"),
-    ("Sponsor team projects", "sponsor", "team-projects"),
-    ("Sponsor analytics", "sponsor", "analytics"),
     ("Live check-in", "live", "checkin"),
     ("Live teams", "live", "teams"),
 )

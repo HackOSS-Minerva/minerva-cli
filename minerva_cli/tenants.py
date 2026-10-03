@@ -13,6 +13,7 @@ from .constants import (
     DESCRIPTIONS,
     EMAIL,
     FIELDS,
+    GIT_COMMIT_GRACE_WINDOW_MINUTES,
     HEADERS,
     PACIFIC_TIMEZONE,
     SCHEDULES,
@@ -93,7 +94,10 @@ def parse_datetime(answers: dict[str, str], row: int, title: str) -> tuple[str, 
 
 
 def parse_row(answers: dict[str, str], row: int) -> TenantInput:
-    config = {"event": {}, "locks": {}}
+    config = {
+        "event": {"gitCommitGraceWindowMinutes": GIT_COMMIT_GRACE_WINDOW_MINUTES},
+        "locks": {},
+    }
     dates = {}
     for title, key, kind, required in FIELDS:
         if kind == "datetime":
@@ -110,10 +114,6 @@ def parse_row(answers: dict[str, str], row: int) -> TenantInput:
                 validate_url(value, row, title)
             if kind == "email" and not EMAIL.fullmatch(value):
                 fail(row, title, "invalid email")
-            if kind == "integer":
-                if not re.fullmatch(r"0|[1-9][0-9]{0,3}", value) or int(value) > 1440:
-                    fail(row, title, "must be an integer between 0 and 1440")
-                value = int(value)
         if key.startswith("event."):
             if value != "":
                 config["event"][key.split(".", 1)[1]] = value
