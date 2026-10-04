@@ -32,12 +32,7 @@ absolute path. Use the editable installation created by `uv sync`.
 
 ## Usage
 
-Download the Form response sheet as CSV outside both repositories.
-
-Enter each date/time separately as `2026-11-01, 8:20 AM, PT`. The CLI applies
-California's daylight-saving offset for that date. Existing ISO timestamps remain
-accepted. For a repeated or skipped clock time during a daylight-saving change,
-use an explicit ISO timestamp or choose another time.
+Google Form responses are updated in the linked Google Sheet. **Maintainers assign `Tenant ID` in the response Sheet.** Download a fresh CSV outside both repositories. Blank rows are skipped.
 
 From `minerva-cli`, prepare a clean Minerva checkout on `main` (preserve existing work first):
 
@@ -48,9 +43,14 @@ uv run minerva-cli tenants sync "/path/to/responses.csv" --dry-run
 uv run minerva-cli tenants sync "/path/to/responses.csv" --draft
 ```
 
-Dry-run only reads files. The second command **commits, pushes, and opens a draft PR**
-against `HackOSS-Minerva/minerva:main`; omit `--draft` for a ready PR.
-Included rows are authoritative; omitted tenants remain unchanged.
+- `--dry-run` only reads and validates the CSV, shows which Minerva files would change
+- `--draft` **commits, pushes, and opens a draft PR** against `HackOSS-Minerva/minerva:main`; omit `--draft` for a ready PR.
+
+Included Form fields are authoritative; omitted tenants remain unchanged.
+
+Validation errors are reported together by row and tenant before any files or Git
+state change. Fix them in the Sheet or Form and export again. Invalid headers or broken CSV syntax stop parsing; date-order checks require valid dates and times.
+
 Failures preserve any created branch. Logs go to stderr; inspect preserved work before retrying.
 For a custom checkout location, use that path in the Git commands above.
 
