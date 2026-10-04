@@ -32,14 +32,7 @@ absolute path. Use the editable installation created by `uv sync`.
 
 ## Usage
 
-Download the Form response sheet as CSV outside both repositories.
-
-Use the Form's separate Date and Time questions for each opening, closing, and
-event timestamp. All times are California time (automatic PST/PDT). Choose another
-time if a daylight-saving transition makes it repeated or nonexistent.
-Maintainers fill in `Tenant ID` in the Sheet before exporting. Keep the Sheet's
-date/time column formats as `yyyy-mm-dd` and `HH:mm:ss`; US-native date and AM/PM
-time exports are also accepted. Older combined date/time CSV exports must be re-exported.
+Google Form responsed are updated in the linked Google Sheet. **Maintainers assign `Tenant ID` in the response Sheet.** Download a fresh CSV outside both repositories. Blank rows are skipped.
 
 From `minerva-cli`, prepare a clean Minerva checkout on `main` (preserve existing work first):
 
@@ -50,11 +43,14 @@ uv run minerva-cli tenants sync "/path/to/responses.csv" --dry-run
 uv run minerva-cli tenants sync "/path/to/responses.csv" --draft
 ```
 
-Dry-run only reads files. The second command **commits, pushes, and opens a draft PR**
-against `HackOSS-Minerva/minerva:main`; omit `--draft` for a ready PR.
+- `--dry-run` only reads and validates the CSV, shows which Minerva files would change 
+- `--draft` **commits, pushes, and opens a draft PR** against `HackOSS-Minerva/minerva:main`; omit `--draft` for a ready PR.
+
 Included Form fields are authoritative; omitted tenants remain unchanged.
-Existing `heart` and `event.openOffset` values stay unchanged; new tenants use an
-empty heart and no opening override.
+
+Validation errors are reported together by row and tenant before any files or Git
+state change. Fix them in the Sheet or Form and export again. Invalid headers or broken CSV syntax stop parsing; date-order checks require valid dates and times.
+
 Failures preserve any created branch. Logs go to stderr; inspect preserved work before retrying.
 For a custom checkout location, use that path in the Git commands above.
 

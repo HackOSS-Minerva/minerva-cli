@@ -66,8 +66,16 @@ def _parse_part(value: str, formats: tuple[str, ...], row: int, title: str) -> d
 
 def parse_datetime(answers: dict[str, str], row: int, title: str) -> tuple[str, datetime]:
     """Combine native Form date/time answers using California's daylight-saving rules."""
-    date = _parse_part(answers[title + " date"].strip(), DATE_FORMATS, row, title + " date")
-    time = _parse_part(answers[title + " time"].strip(), TIME_FORMATS, row, title + " time")
+    parts = []
+    errors = []
+    for suffix, formats in ((" date", DATE_FORMATS), (" time", TIME_FORMATS)):
+        try:
+            parts.append(_parse_part(answers[title + suffix].strip(), formats, row, title + suffix))
+        except ValueError as error:
+            errors.append(str(error))
+    if errors:
+        raise ValueError("\n".join(errors))
+    date, time = parts
     local = datetime.combine(date.date(), time.time())
     try:
         zone = ZoneInfo(PACIFIC_TIMEZONE)
@@ -99,40 +107,54 @@ def parse_row(answers: dict[str, str], row: int) -> TenantInput:
         "locks": {},
     }
     dates = {}
+    errors = []
     for title, key, kind, required in FIELDS:
-        if kind == "datetime":
-            value, dates[key] = parse_datetime(answers, row, title)
-            config["event"][key.split(".", 1)[1]] = value
+        try:
+            if kind == "datetime":
+                value, dates[key] = parse_datetime(answers, row, title)
+                config["event"][key.split(".", 1)[1]] = value
+                continue
+            value = answers[title].strip()
+            if required and not value:
+                fail(row, title, "required")
+            if value:
+                if kind == "slug" and not SLUG.fullmatch(value):
+                    fail(row, title, "expected lowercase letters, digits and single hyphens")
+                if kind == "url":
+                    validate_url(value, row, title)
+                if kind == "email" and not EMAIL.fullmatch(value):
+                    fail(row, title, "invalid email")
+        except ValueError as error:
+            errors.extend(str(error).splitlines())
             continue
-        value = answers[title].strip()
-        if required and not value:
-            fail(row, title, "required")
-        if value:
-            if kind == "slug" and not SLUG.fullmatch(value):
-                fail(row, title, "expected lowercase letters, digits and single hyphens")
-            if kind == "url":
-                validate_url(value, row, title)
-            if kind == "email" and not EMAIL.fullmatch(value):
-                fail(row, title, "invalid email")
         if key.startswith("event."):
             if value != "":
                 config["event"][key.split(".", 1)[1]] = value
         else:
             config[key] = value
-    if dates["event.endTime"] <= dates["event.startTime"]:
-        fail(row, "Event end", "must be after Event start")
-    if dates["event.deadline"] < dates["event.startTime"]:
-        fail(row, "Submission deadline", "must be at or after Event start")
+    if "event.startTime" in dates:
+        start = dates["event.startTime"]
+        if "event.endTime" in dates and dates["event.endTime"] <= start:
+            errors.append(f"row {row}: Event end: must be after Event start")
+        if "event.deadline" in dates and dates["event.deadline"] < start:
+            errors.append(f"row {row}: Submission deadline: must be at or after Event start")
     for title, section, key in SCHEDULES:
         values = []
         instants = []
         for suffix in (" opens", " closes"):
-            value, instant = parse_datetime(answers, row, title + suffix)
-            values.append(value)
-            instants.append(instant)
+            try:
+                value, instant = parse_datetime(answers, row, title + suffix)
+                values.append(value)
+                instants.append(instant)
+            except ValueError as error:
+                errors.extend(str(error).splitlines())
+        if len(instants) != 2:
+            continue
         if instants[1] <= instants[0]:
-            fail(row, title + " closes", "must be after opening time")
+            errors.append(f"row {row}: {title} closes: must be after opening time")
         config["locks"].setdefault(section, {})[key] = values
+    if errors:
+        raise ValueError("\n".join(errors))
     descriptions = {filename: answers[title] for title, filename, *_ in DESCRIPTIONS}
     return TenantInput(config["slug"], config, descriptions)
 
@@ -141,6 +163,7 @@ def parse_tenants(path: Path) -> list[TenantInput]:
     """Validate every nonempty CSV record; never write files or mutate Git state."""
     tenants = []
     seen = set()
+    errors = []
     row_number = 1
     with path.open(encoding="utf-8-sig", newline="") as stream:
         reader = csv.reader(stream, strict=True)
@@ -162,12 +185,30 @@ def parse_tenants(path: Path) -> list[TenantInput]:
                 if not any(value.strip() for value in values):
                     continue
                 if len(values) != len(headers):
-                    fail(row_number, "record", f"expected {len(headers)} cells, got {len(values)}")
-                tenant = parse_row(dict(zip(headers, values, strict=True)), row_number)
-                if tenant.slug in seen:
-                    fail(row_number, "Tenant ID", "duplicate tenant")
-                seen.add(tenant.slug)
-                tenants.append(tenant)
+                    errors.append(
+                        f"row {row_number}: record: expected {len(headers)} cells, got {len(values)}"
+                    )
+                    continue
+                answers = dict(zip(headers, values, strict=True))
+                slug = answers["Tenant ID"].strip()
+                row_errors = []
+                if SLUG.fullmatch(slug):
+                    if slug in seen:
+                        row_errors.append("Tenant ID: duplicate tenant")
+                    seen.add(slug)
+                try:
+                    tenants.append(parse_row(answers, row_number))
+                except ValueError as error:
+                    row_errors.extend(
+                        line.removeprefix(f"row {row_number}: ") for line in str(error).splitlines()
+                    )
+                if row_errors:
+                    label = f"row {row_number}"
+                    if SLUG.fullmatch(slug):
+                        label += f" ({slug})"
+                    errors.append(label + ":\n  - " + "\n  - ".join(row_errors))
         except csv.Error as error:
-            fail(row_number, "CSV", str(error))
+            errors.append(f"row {row_number}: CSV: {error}")
+    if errors:
+        raise ValueError("CSV validation failed:\n" + "\n".join(errors))
     return tenants
