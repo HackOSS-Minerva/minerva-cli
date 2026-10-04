@@ -9,15 +9,14 @@ from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .constants import (
+    DATE_FORMATS,
     DESCRIPTIONS,
     EMAIL,
     FIELDS,
     HEADERS,
-    ISO_DATETIME,
-    PACIFIC_DATETIME,
     PACIFIC_TIMEZONE,
-    SCHEDULES,
     SLUG,
+    TIME_FORMATS,
 )
 
 
@@ -52,20 +51,30 @@ def validate_url(value: str, row: int, title: str):
         fail(row, title, "invalid absolute URL")
 
 
-def parse_datetime(value: str, row: int, title: str) -> tuple[str, datetime]:
-    """Preserve ISO answers; convert readable Pacific answers to offset timestamps."""
-    try:
-        if ISO_DATETIME.fullmatch(value):
-            return value, datetime.fromisoformat(value)
-        match = PACIFIC_DATETIME.fullmatch(value)
-        if not match:
-            raise ValueError("invalid syntax")
-        date, hour, minute, period = match.groups()
-        local = datetime.fromisoformat(date).replace(
-            hour=int(hour) % 12 + (12 if period.upper() == "PM" else 0), minute=int(minute)
-        )
-    except ValueError:
-        fail(row, title, "use YYYY-MM-DD, h:mm AM/PM, PT or an ISO datetime with explicit timezone")
+def _parse_part(value: str, formats: tuple[str, ...], row: int, title: str) -> datetime:
+    if not value:
+        fail(row, title, "required")
+    for pattern in formats:
+        try:
+            return datetime.strptime(value, pattern)
+        except ValueError:
+            pass
+    fail(row, title, "invalid date/time from the Form response sheet")
+
+
+def parse_datetime(answers: dict[str, str], row: int, title: str) -> tuple[str, datetime]:
+    """Combine native Form date/time answers using California's daylight-saving rules."""
+    parts = []
+    errors = []
+    for suffix, formats in ((" date", DATE_FORMATS), (" time", TIME_FORMATS)):
+        try:
+            parts.append(_parse_part(answers[title + suffix].strip(), formats, row, title + suffix))
+        except ValueError as error:
+            errors.append(str(error))
+    if errors:
+        raise ValueError("\n".join(errors))
+    date, time = parts
+    local = datetime.combine(date.date(), time.time())
     try:
         zone = ZoneInfo(PACIFIC_TIMEZONE)
     except ZoneInfoNotFoundError:
@@ -83,7 +92,7 @@ def parse_datetime(value: str, row: int, title: str) -> tuple[str, datetime]:
         fail(
             row,
             title,
-            "ambiguous or nonexistent Pacific time during daylight saving; use an explicit ISO offset",
+            "ambiguous or nonexistent Pacific time during daylight saving; choose another time",
         )
     normalized = instants.pop().astimezone(zone).isoformat()
     # Fixed-offset datetimes compare by instant even across daylight-saving transitions.
@@ -91,12 +100,16 @@ def parse_datetime(value: str, row: int, title: str) -> tuple[str, datetime]:
 
 
 def parse_row(answers: dict[str, str], row: int) -> TenantInput:
-    config = {"event": {}, "locks": {}}
+    config = {"event": {}}
     dates = {}
     errors = []
     for title, key, kind, required in FIELDS:
-        value = answers[title].strip()
         try:
+            if kind == "datetime":
+                value, dates[key] = parse_datetime(answers, row, title)
+                config["event"][key.split(".", 1)[1]] = value
+                continue
+            value = answers[title].strip()
             if required and not value:
                 fail(row, title, "required")
             if value:
@@ -106,14 +119,8 @@ def parse_row(answers: dict[str, str], row: int) -> TenantInput:
                     validate_url(value, row, title)
                 if kind == "email" and not EMAIL.fullmatch(value):
                     fail(row, title, "invalid email")
-                if kind == "datetime":
-                    value, dates[key] = parse_datetime(value, row, title)
-                if kind == "integer":
-                    if not re.fullmatch(r"0|[1-9][0-9]{0,3}", value) or int(value) > 1440:
-                        fail(row, title, "must be an integer between 0 and 1440")
-                    value = int(value)
         except ValueError as error:
-            errors.append(str(error))
+            errors.extend(str(error).splitlines())
             continue
         if key.startswith("event."):
             if value != "":
@@ -126,24 +133,6 @@ def parse_row(answers: dict[str, str], row: int) -> TenantInput:
             errors.append(f"row {row}: Event end: must be after Event start")
         if "event.deadline" in dates and dates["event.deadline"] < start:
             errors.append(f"row {row}: Submission deadline: must be at or after Event start")
-    for title, section, key in SCHEDULES:
-        values = []
-        instants = []
-        for suffix in (" opens", " closes"):
-            try:
-                value = answers[title + suffix].strip()
-                if not value:
-                    fail(row, title + suffix, "required")
-                value, instant = parse_datetime(value, row, title + suffix)
-                values.append(value)
-                instants.append(instant)
-            except ValueError as error:
-                errors.append(str(error))
-        if len(instants) != 2:
-            continue
-        if instants[1] <= instants[0]:
-            errors.append(f"row {row}: {title} closes: must be after opening time")
-        config["locks"].setdefault(section, {})[key] = values
     if errors:
         raise ValueError("\n".join(errors))
     descriptions = {filename: answers[title] for title, filename, *_ in DESCRIPTIONS}

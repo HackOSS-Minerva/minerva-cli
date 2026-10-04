@@ -74,7 +74,19 @@ def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = F
     """Publish a plan after preflight; preserve local work on every failure."""
     if not plan.changes:
         return ""
-    branch = "tenant-sync/" + datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
+    branch = "tenant-sync/" + datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    new_tenants = [
+        slug
+        for slug in plan.processed_slugs
+        if not (repo / "tenants" / slug / f"{slug}.json").exists()
+    ]
+    title = "chore(tenants): update configuration"
+    if new_tenants and len(new_tenants) == len(plan.processed_slugs):
+        title = f"feat(tenants): add {len(new_tenants)} tenants"
+        if len(new_tenants) == 1:
+            title = f"feat(tenants): add {new_tenants[0]} tenant"
+            if len(title) > 50:
+                title = "feat(tenants): add 1 tenant"
     created = pushed = False
     try:
         stage = "origin repository"
@@ -92,24 +104,18 @@ def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = F
         stage = "staging"
         _run(repo, "git", "add", "--", *(str(path) for path in plan.changes))
         stage = "commit"
-        title = "chore(tenants): sync configuration"
         _run(repo, "git", "commit", "-m", title)
         stage = "push"
         _run(repo, "git", "push", "--set-upstream", "origin", branch)
         pushed = True
         stage = "PR creation"
         body = (
-            "### Context\nUpdate tenant configuration from the exported response CSV.\n\n"
-            "### Core Changes\n"
+            "Updated tenant configuration from the submitted form.\n\n"
             + "".join(
-                f"- Sync `{slug}` configuration and description files.\n"
+                f"- Generated tenant configuration and page content for `{slug}`.\n"
                 for slug in plan.processed_slugs
             )
-            + "\n### Testing & Verification\n"
-            "- Validated CSV answers and generated paths; checked the clean, up-to-date base.\n"
-            "- Application build and tests were not run by this command.\n\n"
-            "### Impact & Edge Cases\n"
-            "- Included rows are authoritative; omitted tenants remain unchanged.\n"
+            + "- Updated the tenant registry.\n"
         )
         args = [
             "gh",
