@@ -13,10 +13,8 @@ from .constants import (
     DESCRIPTIONS,
     EMAIL,
     FIELDS,
-    GIT_COMMIT_GRACE_WINDOW_MINUTES,
     HEADERS,
     PACIFIC_TIMEZONE,
-    SCHEDULES,
     SLUG,
     TIME_FORMATS,
 )
@@ -102,10 +100,7 @@ def parse_datetime(answers: dict[str, str], row: int, title: str) -> tuple[str, 
 
 
 def parse_row(answers: dict[str, str], row: int) -> TenantInput:
-    config = {
-        "event": {"gitCommitGraceWindowMinutes": GIT_COMMIT_GRACE_WINDOW_MINUTES},
-        "locks": {},
-    }
+    config = {"event": {}}
     dates = {}
     errors = []
     for title, key, kind, required in FIELDS:
@@ -138,21 +133,6 @@ def parse_row(answers: dict[str, str], row: int) -> TenantInput:
             errors.append(f"row {row}: Event end: must be after Event start")
         if "event.deadline" in dates and dates["event.deadline"] < start:
             errors.append(f"row {row}: Submission deadline: must be at or after Event start")
-    for title, section, key in SCHEDULES:
-        values = []
-        instants = []
-        for suffix in (" opens", " closes"):
-            try:
-                value, instant = parse_datetime(answers, row, title + suffix)
-                values.append(value)
-                instants.append(instant)
-            except ValueError as error:
-                errors.extend(str(error).splitlines())
-        if len(instants) != 2:
-            continue
-        if instants[1] <= instants[0]:
-            errors.append(f"row {row}: {title} closes: must be after opening time")
-        config["locks"].setdefault(section, {})[key] = values
     if errors:
         raise ValueError("\n".join(errors))
     descriptions = {filename: answers[title] for title, filename, *_ in DESCRIPTIONS}

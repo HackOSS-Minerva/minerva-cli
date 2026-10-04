@@ -6,7 +6,6 @@ from pathlib import Path
 MINERVA_CHECKOUT = Path(__file__).resolve().parents[2] / "minerva"
 MINERVA_REPOSITORY = "HackOSS-Minerva/minerva"
 BASE_BRANCH = "main"
-GIT_COMMIT_GRACE_WINDOW_MINUTES = 15
 PACIFIC_TIMEZONE = "America/Los_Angeles"
 DATE_FORMATS = ("%Y-%m-%d", "%m/%d/%Y")
 TIME_FORMATS = ("%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p")
@@ -32,22 +31,6 @@ FIELDS = (
     ("Event end", "event.endTime", "datetime", True),
     ("Submission deadline", "event.deadline", "datetime", True),
 )
-# Question prefix, config section, lock key. Each lock has opens/closes answers.
-SCHEDULES = (
-    ("Participant registration", "forms", "participant"),
-    ("Judge registration", "forms", "judge"),
-    ("Speaker registration", "forms", "speaker"),
-    ("Superadmin registration", "forms", "superadmin"),
-    ("Volunteer registration", "forms", "volunteer"),
-    ("Project submission form", "forms", "submission"),
-    ("Feedback form", "forms", "feedback"),
-    ("Judge assignments", "judge", "assignments"),
-    ("Judge submissions", "judge", "submissions"),
-    ("Judge orientation", "judge", "orientation"),
-    ("Judge certificate", "judge", "certificate"),
-    ("Live check-in", "live", "checkin"),
-    ("Live teams", "live", "teams"),
-)
 # Question title, filename/input key, registry group, registry export key.
 DESCRIPTIONS = (
     ("Participant registration introduction", "participants.mdx", "headers", "participant"),
@@ -66,12 +49,6 @@ HEADERS = (
         title + part
         for title, _, kind, _ in FIELDS
         for part in ((" date", " time") if kind == "datetime" else ("",))
-    ),
-    *(
-        title + suffix + part
-        for title, *_ in SCHEDULES
-        for suffix in (" opens", " closes")
-        for part in (" date", " time")
     ),
     *(title for title, *_ in DESCRIPTIONS),
 )
