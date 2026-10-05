@@ -31,9 +31,9 @@ def sync(
         parsed = parse_tenants(csv.resolve())
         repo = constants.MINERVA_CHECKOUT.resolve()
         validate_checkout(repo)
+        plan = build_plan(repo, parsed)
         if not dry_run:
             preflight(repo)
-        plan = build_plan(repo, parsed)
         logger.info("Processed tenants: %d", len(plan.processed_slugs))
         if not plan.changes:
             logger.info("No changes; no branch or PR created.")

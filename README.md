@@ -7,6 +7,9 @@ Generate Minerva tenant configuration and a GitHub PR from a Google Forms CSV.
 Python 3.12, uv, Git, GitHub CLI (`gh`), Minerva write access, and access to the
 response sheet. Publishing uses your configured Git identity and `gh` login.
 
+Install Minerva's dependencies first. Generated files use its local Prettier and
+configuration; formatting failures stop before file writes or Git operations.
+
 ## Setup
 
 Run from the folder where you keep your repositories; skip clones you already have.
