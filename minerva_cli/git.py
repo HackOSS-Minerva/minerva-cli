@@ -70,6 +70,44 @@ def preflight(repo: Path, base: str = BASE_BRANCH) -> None:
         raise RuntimeError(f"Preflight failed at {stage}: {error}") from error
 
 
+def _pr_summary(plan: SyncPlan, new_tenants: list[str]) -> tuple[str, str]:
+    added = []
+    updated = []
+    lines = []
+    for slug in sorted(plan.processed_slugs):
+        base = Path("tenants") / slug
+        changed = []
+        if base / f"{slug}.json" in plan.changes:
+            changed.append("configuration")
+        if any(path.parent == base / "descriptions" for path in plan.changes):
+            changed.append("page content")
+        if not changed:
+            continue
+        is_new = slug in new_tenants
+        (added if is_new else updated).append(slug)
+        action = "Added" if is_new else "Updated"
+        lines.append(f"- {action} `{slug}`: {' and '.join(changed)}.")
+    if Path("tenants/generated.ts") in plan.changes:
+        lines.append("- Updated the tenant registry.")
+
+    if added and updated:
+        title = (
+            f"added {len(added)} tenant{'s' if len(added) != 1 else ''} and "
+            f"updated {len(updated)} tenant{'s' if len(updated) != 1 else ''}"
+        )
+    elif added:
+        title = f"added {added[0]} tenant" if len(added) == 1 else f"added {len(added)} tenants"
+    elif updated:
+        title = (
+            f"updated {updated[0]} config"
+            if len(updated) == 1
+            else f"updated {len(updated)} tenants"
+        )
+    else:
+        title = "updated tenant registry"
+    return title, "Tenant changes from the submitted Form responses:\n\n" + "\n".join(lines) + "\n"
+
+
 def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = False) -> str:
     """Publish a plan after preflight; preserve local work on every failure."""
     if not plan.changes:
@@ -80,6 +118,7 @@ def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = F
         for slug in plan.processed_slugs
         if not (repo / "tenants" / slug / f"{slug}.json").exists()
     ]
+    pr_title, body = _pr_summary(plan, new_tenants)
     title = "chore(tenants): update configuration"
     if new_tenants and len(new_tenants) == len(plan.processed_slugs):
         title = f"feat(tenants): add {len(new_tenants)} tenants"
@@ -109,14 +148,6 @@ def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = F
         _run(repo, "git", "push", "--set-upstream", "origin", branch)
         pushed = True
         stage = "PR creation"
-        body = (
-            "Updated tenant configuration from the submitted form.\n\n"
-            + "".join(
-                f"- Generated tenant configuration and page content for `{slug}`.\n"
-                for slug in plan.processed_slugs
-            )
-            + "- Updated the tenant registry.\n"
-        )
         args = [
             "gh",
             "pr",
@@ -128,7 +159,7 @@ def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = F
             "--head",
             branch,
             "--title",
-            title,
+            pr_title,
             "--body-file",
             "-",
         ]
