@@ -1,6 +1,7 @@
 """Deterministic tenant rendering and a single, Git-independent file writer."""
 
 import json
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -42,6 +43,25 @@ def _mdx(content: str) -> str:
     if not content:
         return ""
     return content.replace("\r\n", "\n").replace("\r", "\n").rstrip("\n") + "\n"
+
+
+def _format(repo: Path, relative: Path, content: str) -> str:
+    try:
+        return subprocess.run(
+            [str(repo / "node_modules/.bin/prettier"), "--stdin-filepath", str(relative)],
+            cwd=repo,
+            input=content,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as error:
+        # Prettier diagnostics may contain private tenant content.
+        raise RuntimeError(
+            f"Prettier failed for {relative}; check Minerva's installed dependencies, "
+            "Prettier configuration, and source syntax"
+        ) from error
 
 
 def _identifier(slug: str) -> str:
@@ -154,6 +174,9 @@ def build_plan(repo: Path, tenants: list[TenantInput]) -> SyncPlan:
             if relative not in rendered and not _safe_path(repo, relative).is_file():
                 raise ValueError(f"Missing tenant import: {relative}")
     rendered[Path("tenants/generated.ts")] = _registry(sorted(slugs))
+    rendered = {
+        relative: _format(repo, relative, content) for relative, content in rendered.items()
+    }
     changes = {
         relative: content
         for relative, content in rendered.items()
