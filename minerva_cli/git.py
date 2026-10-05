@@ -105,7 +105,7 @@ def _pr_summary(plan: SyncPlan, new_tenants: list[str]) -> tuple[str, str]:
         )
     else:
         title = "updated tenant registry"
-    return title, "Tenant changes from the submitted Form responses:\n\n" + "\n".join(lines) + "\n"
+    return title, "\n".join(lines) + "\n"
 
 
 def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = False) -> str:
@@ -118,14 +118,7 @@ def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = F
         for slug in plan.processed_slugs
         if not (repo / "tenants" / slug / f"{slug}.json").exists()
     ]
-    pr_title, body = _pr_summary(plan, new_tenants)
-    title = "chore(tenants): update configuration"
-    if new_tenants and len(new_tenants) == len(plan.processed_slugs):
-        title = f"feat(tenants): add {len(new_tenants)} tenants"
-        if len(new_tenants) == 1:
-            title = f"feat(tenants): add {new_tenants[0]} tenant"
-            if len(title) > 50:
-                title = "feat(tenants): add 1 tenant"
+    title, body = _pr_summary(plan, new_tenants)
     created = pushed = False
     try:
         stage = "origin repository"
@@ -159,7 +152,7 @@ def publish(repo: Path, plan: SyncPlan, base: str = BASE_BRANCH, draft: bool = F
             "--head",
             branch,
             "--title",
-            pr_title,
+            title,
             "--body-file",
             "-",
         ]
